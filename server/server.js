@@ -3,11 +3,11 @@
 import { createServer } from "http";
 import express from "express";
 import { WebSocketServer } from "ws";
-import xssClean from "xss-clean";
+// Removed: import xssClean from "xss-clean"; // REMOVED THIS LINE
 
 // --- Basic Server Setup ---
 const app = express();
-app.use(xssClean()); // Sanitize user input
+// Removed: app.use(xssClean()); // REMOVED THIS LINE
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
@@ -26,7 +26,7 @@ const generateRoomCode = () => {
   do {
     code = Math.random().toString(36).substring(2, 8).toUpperCase();
   } while (gameSessions[code]); // Ensure code is unique
-  console.log(`Generated room code: ${code}`); // ADD THIS LINE
+  console.log(`Generated room code: ${code}`); // ADDED FOR DEBUGGING
   return code;
 };
 
@@ -84,7 +84,7 @@ wss.on("connection", (ws) => {
         // If the game is in progress or lobby, notify others
         if (session.players.length === 0) {
           delete gameSessions[roomCode]; // Clean up empty room
-          console.log(`Room ${roomCode} deleted as it became empty.`); // ADD THIS LINE
+          console.log(`Room ${roomCode} deleted as it became empty.`); // ADDED FOR DEBUGGING
         } else {
           broadcastToRoom(roomCode, {
             type: "UPDATE_GAME_STATE",
@@ -170,18 +170,18 @@ function createRoom({ ws, clientId, playerName }) {
       votes: {}, // { voterId: votedPlayerId }
     },
   };
-  console.log(`Room created: ${roomCode}, Host: ${clientId}, Players: ${gameSessions[roomCode].players.length}`); // ADD THIS LINE
-  console.log('Current gameSessions (after create):', Object.keys(gameSessions)); // ADD THIS LINE
+  console.log(`Room created: ${roomCode}, Host: ${clientId}, Players: ${gameSessions[roomCode].players.length}`); // ADDED FOR DEBUGGING
+  console.log('Current gameSessions (after create):', Object.keys(gameSessions)); // ADDED FOR DEBUGGING
   ws.send(
     JSON.stringify({ type: "ROOM_CREATED", payload: gameSessions[roomCode] })
   );
 }
 
 function joinRoom({ ws, clientId, roomCode, playerName }) {
-  console.log(`Attempting to join room: ${roomCode}, Client: ${clientId}, Player: ${playerName}`); // ADD THIS LINE
+  console.log(`Attempting to join room: ${roomCode}, Client: ${clientId}, Player: ${playerName}`); // ADDED FOR DEBUGGING
   const session = gameSessions[roomCode];
   if (!session) {
-    console.log(`Room ${roomCode} not found for client ${clientId}. Available rooms:`, Object.keys(gameSessions)); // ADD THIS LINE
+    console.log(`Room ${roomCode} not found for client ${clientId}. Available rooms:`, Object.keys(gameSessions)); // ADDED FOR DEBUGGING
     return ws.send(
       JSON.stringify({ type: "ERROR", payload: { message: "Room not found." } })
     );
@@ -206,7 +206,121 @@ function joinRoom({ ws, clientId, roomCode, playerName }) {
   );
 }
 
-// ... rest of your server.js functions ...
+function startGame({ roomCode, clientId }) {
+  const session = gameSessions[roomCode];
+  if (!session || session.hostId !== clientId) return; // Only host can start
+  if (session.players.length < 3) {
+    // Send error message back to host
+    session.players
+      .find((p) => p.clientId === clientId)
+      .ws.send(
+        JSON.stringify({
+          type: "ERROR",
+          payload: { message: "Need at least 3 players to start." },
+        })
+      );
+    return;
+  }
+
+  session.gameState = "TYPING";
+  startNewRound({ roomCode });
+}
+
+function startNewRound({ roomCode }) {
+  const session = gameSessions[roomCode];
+  if (!session) return;
+
+  // Reset round-specific data
+  session.rounds.submittedText = "";
+  session.rounds.votes = {};
+  session.gameState = "TYPING";
+
+  // Choose the next typer
+  let availablePlayers = session.players.filter(
+    (p) => !session.rounds.playersWhoHaveTyped.includes(p.clientId)
+  );
+
+  // If all players have typed, reset the list
+  if (availablePlayers.length === 0) {
+    session.rounds.playersWhoHaveTyped = [];
+    availablePlayers = session.players;
+  }
+
+  const randomPlayer =
+    availablePlayers[Math.floor(Math.random() * availablePlayers.length)];
+  session.rounds.currentTyperId = randomPlayer.clientId;
+  session.rounds.playersWhoHaveTyped.push(randomPlayer.clientId);
+
+  broadcastToRoom(roomCode, {
+    type: "NEW_ROUND",
+    payload: session,
+  });
+}
+
+function submitText({ roomCode, clientId, text }) {
+  const session = gameSessions[roomCode];
+  if (!session || session.rounds.currentTyperId !== clientId) return;
+
+  session.rounds.submittedText = text; // No xss-clean here anymore.
+  session.gameState = "READING";
+
+  broadcastToRoom(roomCode, {
+    type: "TEXT_SUBMITTED",
+    payload: session,
+  });
+
+  // Start 40-second timer
+  setTimeout(() => {
+    if (gameSessions[roomCode]) {
+      // Check if room still exists
+      gameSessions[roomCode].gameState = "VOTING";
+      broadcastToRoom(roomCode, {
+        type: "VOTING_STARTED",
+        payload: gameSessions[roomCode],
+      });
+    }
+  }, 40000); // 40 seconds
+}
+
+function handleVote({ roomCode, clientId, votedPlayerId }) {
+  const session = gameSessions[roomCode];
+  if (!session || session.gameState !== "VOTING") return;
+
+  session.rounds.votes[clientId] = votedPlayerId;
+
+  // Check if all players (except the typer) have voted
+  const typerId = session.rounds.currentTyperId;
+  const voters = session.players.filter((p) => p.clientId !== typerId);
+
+  if (Object.keys(session.rounds.votes).length === voters.length) {
+    // All votes are in, calculate score
+    calculateScores(roomCode);
+  }
+}
+
+function calculateScores(roomCode) {
+  const session = gameSessions[roomCode];
+  if (!session) return;
+
+  const typerId = session.rounds.currentTyperId;
+  const votes = session.rounds.votes;
+  let gameHasWinner = false;
+
+  session.players.forEach((player) => {
+    if (votes[player.clientId] && votes[player.clientId] === typerId) {
+      player.score += 1;
+      if (player.score >= 10) {
+        gameHasWinner = true;
+      }
+    }
+  });
+
+  session.gameState = gameHasWinner ? "END" : "SCORE";
+  broadcastToRoom(roomCode, {
+    type: "ROUND_OVER",
+    payload: session,
+  });
+}
 
 // --- Start Server ---
 const PORT = process.env.PORT || 8080;

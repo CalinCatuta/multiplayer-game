@@ -3,7 +3,7 @@
 // --- WebSocket Connection ---
 // In development, this connects to your local server.
 // For production on Render/Netlify, use the Render URL.
-const WS_URL = "ws://localhost:8080";
+const WS_URL = "https://guesswhofarted.onrender.com"; // Ensure this is YOUR Render URL and wss://
 const ws = new WebSocket(WS_URL);
 
 // --- State Management ---
@@ -40,11 +40,17 @@ ws.onmessage = (event) => {
     case "ERROR":
       showError(payload.message);
       break;
+    case "YOUR_CLIENT_ID": //
+      myClientId = payload.clientId; //
+      console.log("My assigned Client ID:", myClientId); //
+      break;
     case "ROOM_CREATED":
     case "JOINED_ROOM":
-      myClientId = ws.clientId; // Server assigns this upon connection
+      // myClientId is now set by 'YOUR_CLIENT_ID'
+      // You can remove or keep the line below, but it's redundant if set on connection
+      // myClientId = payload.clientId; // This line will still be undefined based on current payload structure
       roomCode = payload.roomCode;
-      isHost = payload.hostId === myClientId;
+      isHost = payload.hostId === myClientId; // This will now correctly use the pre-set myClientId
       updateLobby(payload);
       showScreen("lobby-screen");
       break;
@@ -64,9 +70,12 @@ ws.onmessage = (event) => {
       handleScorePhase(payload);
       break;
     case "SOUND_PLAYED":
-      // Logic to play the sound payload.sound
-      console.log(`Playing sound: ${payload.sound}`);
-      // Example: const audio = new Audio(`/sounds/${payload.sound}.mp3`); audio.play();
+      // Broadcast sound to everyone in the room except the sender
+      broadcastToRoom(
+        payload.roomCode,
+        { type: "SOUND_PLAYED", payload: { sound: payload.sound } }, // payload.sound will be "besina-1", etc.
+        payload.clientId
+      );
       break;
   }
 };
@@ -83,7 +92,9 @@ const sendMessage = (type, payload = {}) => {
     type,
     payload: {
       ...payload,
-      roomCode, // Add current room code to payload
+      // Only include the global roomCode if it's not already specifically provided
+      // for the current message (like JOIN_ROOM)
+      roomCode: payload.roomCode || roomCode, // Use passed roomCode or global roomCode
       clientId: myClientId, // Add our client ID
     },
   };
@@ -110,11 +121,25 @@ const updateLobby = (gameState) => {
   });
 
   const startBtn = document.getElementById("start-game-btn");
-  startBtn.style.display = isHost ? "block" : "none";
+
+  // Logic to show/hide and enable/disable the start button
+  if (!isHost) {
+    startBtn.style.display = "none"; // Show for host
+    // Disable if less than 3 players
+  }
 };
 
 const handleNewRound = (gameState) => {
+  console.log("handleNewRound called. Game State:", gameState); // ADDED FOR DEBUGGING
+  console.log(
+    "Current Typer ID from gameState:",
+    gameState.rounds.currentTyperId
+  ); // ADDED FOR DEBUGGING
+
   const amITyper = gameState.rounds.currentTyperId === myClientId;
+  console.log("My Client ID:", myClientId); // ADDED FOR DEBUGGING
+  console.log("Am I the typer?", amITyper); // ADDED FOR DEBUGGING
+
   if (amITyper) {
     document.getElementById("text-input-area").value = "";
     showScreen("typing-screen");
@@ -122,8 +147,14 @@ const handleNewRound = (gameState) => {
     const typer = gameState.players.find(
       (p) => p.clientId === gameState.rounds.currentTyperId
     );
-    document.getElementById("current-typer-name-wait").textContent =
-      typer.playerName;
+    // Defensive check: ensure typer is found before accessing .playerName
+    if (typer) {
+      document.getElementById("current-typer-name-wait").textContent = "";
+    } else {
+      document.getElementById("current-typer-name-wait").textContent =
+        "A player is typing...";
+      console.warn("Typer player not found in gameState.players array.");
+    }
     showScreen("waiting-screen");
   }
 };
@@ -232,6 +263,14 @@ function setupEventListeners() {
     } else {
       showError("Name must contain only letters.");
     }
+    // Correctly target sound buttons and ensure the path is accurate
+    document.querySelectorAll(".sound-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        // The `data-sound` attribute now holds "besina-1", "besina-2", etc.
+        const soundName = btn.dataset.sound;
+        sendMessage("PLAY_SOUND", { sound: soundName }); // Send the specific sound name
+      });
+    });
   });
 
   document.getElementById("find-room-btn").addEventListener("click", () => {

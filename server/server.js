@@ -3,17 +3,14 @@
 import { createServer } from "http";
 import express from "express";
 import { WebSocketServer } from "ws";
-import xssClean from "xss-clean";
+// Removed: import xssClean from "xss-clean";
 
 // --- Basic Server Setup ---
 const app = express();
-app.use(xssClean()); // Sanitize user input
-
-// Note: In production, you'll serve the 'client' folder's built files.
-// For development, this helps serve the client directly.
-// import path from 'path';
-// const __dirname = path.resolve();
-// app.use(express.static(path.join(__dirname, '..', 'client')));
+// Removed: app.use(xssClean()); // Removed for testing without protection
+// It tells Express to serve static files from the 'client' directory.
+// When a request comes in for a file like /sounds/A.mp3, it will look in client/sounds/A.mp3
+app.use(express.static("client")); //
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
@@ -32,6 +29,7 @@ const generateRoomCode = () => {
   do {
     code = Math.random().toString(36).substring(2, 8).toUpperCase();
   } while (gameSessions[code]); // Ensure code is unique
+  console.log(`Generated room code: ${code}`); // ADDED FOR DEBUGGING
   return code;
 };
 
@@ -61,6 +59,14 @@ wss.on("connection", (ws) => {
   ws.clientId = Math.random().toString(36).substring(2, 15);
   console.log(`Client ${ws.clientId} connected.`);
 
+  // Send the client its own ID immediately upon connection
+  ws.send(
+    JSON.stringify({
+      type: "YOUR_CLIENT_ID",
+      payload: { clientId: ws.clientId },
+    })
+  ); //
+
   ws.on("message", (rawMessage) => {
     try {
       const message = JSON.parse(rawMessage);
@@ -77,7 +83,7 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    console.log(`Client ${ws.clientId} disconnected.`);
+    console.log(`Client ${ws.clientId} disconnected.`); // ADDED FOR DEBUGGING
     // Find which room the player was in and handle their departure
     for (const roomCode in gameSessions) {
       const session = gameSessions[roomCode];
@@ -89,6 +95,7 @@ wss.on("connection", (ws) => {
         // If the game is in progress or lobby, notify others
         if (session.players.length === 0) {
           delete gameSessions[roomCode]; // Clean up empty room
+          console.log(`Room ${roomCode} deleted as it became empty.`); // ADDED FOR DEBUGGING
         } else {
           broadcastToRoom(roomCode, {
             type: "UPDATE_GAME_STATE",
@@ -174,14 +181,28 @@ function createRoom({ ws, clientId, playerName }) {
       votes: {}, // { voterId: votedPlayerId }
     },
   };
+  console.log(
+    `Room created: ${roomCode}, Host: ${clientId}, Players: ${gameSessions[roomCode].players.length}`
+  ); // ADDED FOR DEBUGGING
+  console.log(
+    "Current gameSessions (after create):",
+    Object.keys(gameSessions)
+  ); // ADDED FOR DEBUGGING
   ws.send(
     JSON.stringify({ type: "ROOM_CREATED", payload: gameSessions[roomCode] })
   );
 }
 
 function joinRoom({ ws, clientId, roomCode, playerName }) {
+  console.log(
+    `Attempting to join room: ${roomCode}, Client: ${clientId}, Player: ${playerName}`
+  ); // ADDED FOR DEBUGGING
   const session = gameSessions[roomCode];
   if (!session) {
+    console.log(
+      `Room ${roomCode} not found for client ${clientId}. Available rooms:`,
+      Object.keys(gameSessions)
+    ); // ADDED FOR DEBUGGING
     return ws.send(
       JSON.stringify({ type: "ERROR", payload: { message: "Room not found." } })
     );
@@ -251,6 +272,11 @@ function startNewRound({ roomCode }) {
   session.rounds.currentTyperId = randomPlayer.clientId;
   session.rounds.playersWhoHaveTyped.push(randomPlayer.clientId);
 
+  // Corrected console.log for chosen player
+  console.log(
+    `Server: Room ${roomCode} - Chosen typer for new round: ${randomPlayer.playerName} (${randomPlayer.clientId})`
+  ); // FIXED LOG
+
   broadcastToRoom(roomCode, {
     type: "NEW_ROUND",
     payload: session,
@@ -261,7 +287,7 @@ function submitText({ roomCode, clientId, text }) {
   const session = gameSessions[roomCode];
   if (!session || session.rounds.currentTyperId !== clientId) return;
 
-  session.rounds.submittedText = text; // Already sanitized by xss-clean
+  session.rounds.submittedText = text; // No xss-clean. Ensure client-side sanitization or server-side escaping for display.
   session.gameState = "READING";
 
   broadcastToRoom(roomCode, {

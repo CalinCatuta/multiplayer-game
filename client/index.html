@@ -9,7 +9,7 @@
   <body>
     <div id="game-container">
       <div id="start-screen" class="screen active">
-        <h1>Game Title</h1>
+        <h1>GuessWhoFarted</h1>
         <button id="host-btn">Host</button>
         <button id="join-btn">Join</button>
       </div>
@@ -17,11 +17,7 @@
       <div id="join-screen" class="screen">
         <h2>Join a Room</h2>
         <input type="text" id="room-code-input" placeholder="Room Code..." />
-        <input
-          type="text"
-          id="join-player-name-input"
-          placeholder="PlayerName..."
-        />
+        <input type="text" id="join-player-name-input" placeholder="Nume" />
         <button id="find-room-btn">Find</button>
       </div>
 
@@ -37,19 +33,19 @@
 
       <div id="lobby-screen" class="screen">
         <h2>Lobby</h2>
-        <p>Share Code: <b id="room-code-display"></b></p>
+        <p>Room Code: <b id="room-code-display"></b></p>
         <h3>Players:</h3>
         <div id="lobby-player-list"></div>
         <button id="start-game-btn">Start</button>
       </div>
 
       <div id="typing-screen" class="screen">
-        <p>It's your turn! Write something...</p>
+        <p>Let them feel the smell</p>
         <textarea id="text-input-area" rows="10" cols="50"></textarea>
         <div class="sound-buttons">
-          <button class="sound-btn" data-sound="A">Sound A</button>
-          <button class="sound-btn" data-sound="B">Sound B</button>
-          <button class="sound-btn" data-sound="C">Sound C</button>
+          <button class="sound-btn" data-sound="besina-1">Sound 1</button>
+          <button class="sound-btn" data-sound="besina-2">Sound 2</button>
+          <button class="sound-btn" data-sound="besina-3">Sound 3</button>
         </div>
         <button id="submit-text-btn">Done</button>
       </div>
@@ -61,13 +57,13 @@
       </div>
 
       <div id="reading-screen" class="screen">
-        <p>Who wrote this?</p>
+        <p>Who Farted?</p>
         <div id="submitted-text-display"></div>
-        <p>Time remaining: <span id="timer-display">40</span>s</p>
+        <p>Time to think: <span id="timer-display">40</span>sec</p>
       </div>
 
       <div id="voting-screen" class="screen">
-        <h2>Who was the typer?</h2>
+        <h2>Who Farted?</h2>
         <div id="voting-player-list"></div>
         <button id="submit-vote-btn" disabled>Vote</button>
       </div>

@@ -72,9 +72,9 @@ ws.onmessage = (event) => {
     case "SOUND_PLAYED":
       // Logic to play the sound payload.sound
       console.log(`Playing sound: ${payload.sound}`);
-      const audio = new Audio(`/sounds/${payload.sound}.mp3`); // Make sure this path is correct
-      audio.play().catch((e) => console.error("Error playing sound:", e)); // Add error handling for playback
-      break; // <--- Don't forget this break!
+      const audio = new Audio(`/sounds/${payload.sound}.mp3`);
+      audio.play().catch((e) => console.error("Error playing sound:", e));
+      break;
   }
 };
 
@@ -266,15 +266,12 @@ function setupEventListeners() {
       btn.addEventListener("click", () => {
         const soundName = btn.dataset.sound;
 
-        // 1. Play the sound locally for the typer IMMEDIATELY
-        console.log(`Playing local sound: ${soundName}`);
-        const audio = new Audio(`/sounds/${soundName}.mp3`);
-        audio
-          .play()
-          .catch((e) => console.error("Error playing local sound:", e));
-
-        // 2. Send the message to the server to broadcast to others
+        // Now, we ONLY send the message to the server.
+        // The server will broadcast it to ALL clients, including this one.
         sendMessage("PLAY_SOUND", { sound: soundName });
+
+        // REMOVED: Local audio.play() for the typer.
+        // The sound will now be played when this client receives the "SOUND_PLAYED" message from the server.
       });
     });
   });

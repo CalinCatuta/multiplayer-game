@@ -40,9 +40,9 @@ ws.onmessage = (event) => {
     case "ERROR":
       showError(payload.message);
       break;
-    case "ROOM_CREATED":
+   case "ROOM_CREATED":
     case "JOINED_ROOM":
-      myClientId = ws.clientId; // Server assigns this upon connection
+      myClientId = payload.clientId; // <--- CORRECTED LINE: Get clientId from payload
       roomCode = payload.roomCode;
       isHost = payload.hostId === myClientId;
       updateLobby(payload);

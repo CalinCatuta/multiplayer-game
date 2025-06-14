@@ -3,7 +3,7 @@
 // --- WebSocket Connection ---
 // In development, this connects to your local server.
 // For production on Render/Netlify, use the Render URL.
-const WS_URL = "https://guesswhofarted.onrender.com";
+const WS_URL = "https://guesswhofarted.onrender.com"; // Ensure this is YOUR Render URL and wss://
 const ws = new WebSocket(WS_URL);
 
 // --- State Management ---
@@ -42,7 +42,7 @@ ws.onmessage = (event) => {
       break;
     case "ROOM_CREATED":
     case "JOINED_ROOM":
-      myClientId = payload.clientId; // <--- CORRECTED LINE: Get clientId from payload
+      myClientId = payload.clientId; // Client ID comes from the server's payload
       roomCode = payload.roomCode;
       isHost = payload.hostId === myClientId;
       updateLobby(payload);
@@ -85,7 +85,7 @@ const sendMessage = (type, payload = {}) => {
       ...payload,
       // Only include the global roomCode if it's not already specifically provided
       // for the current message (like JOIN_ROOM)
-      roomCode: payload.roomCode || roomCode, // <--- CHANGE THIS LINE
+      roomCode: payload.roomCode || roomCode, // Use passed roomCode or global roomCode
       clientId: myClientId, // Add our client ID
     },
   };
@@ -100,34 +100,37 @@ const showError = (message) => {
 };
 
 const updateLobby = (gameState) => {
-  //
-  document.getElementById("room-code-display").textContent = gameState.roomCode; //
-  const playerList = document.getElementById("lobby-player-list"); //
+  document.getElementById("room-code-display").textContent = gameState.roomCode;
+  const playerList = document.getElementById("lobby-player-list");
   playerList.innerHTML = ""; // Clear previous list
   gameState.players.forEach((player) => {
-    //
-    const playerDiv = document.createElement("div"); //
-    playerDiv.className = "player-box"; //
+    const playerDiv = document.createElement("div");
+    playerDiv.className = "player-box";
     playerDiv.textContent =
-      player.playerName + (player.clientId === myClientId ? " (You)" : ""); //
-    playerList.appendChild(playerDiv); //
+      player.playerName + (player.clientId === myClientId ? " (You)" : "");
+    playerList.appendChild(playerDiv);
   });
 
-  const startBtn = document.getElementById("start-game-btn"); //
+  const startBtn = document.getElementById("start-game-btn");
 
   // Logic to show/hide and enable/disable the start button
-  if (isHost) {
-    //
-    startBtn.style.display = "block"; // // Always show for host
+  if (!isHost) {
+    startBtn.style.display = "none"; // Show for host
     // Disable if less than 3 players
-    startBtn.disabled = gameState.players.length < 3; // <--- ADDED/MODIFIED THIS LINE
-  } else {
-    startBtn.style.display = "none"; // // Hide for non-hosts
   }
 };
 
 const handleNewRound = (gameState) => {
+  console.log("handleNewRound called. Game State:", gameState); // ADDED FOR DEBUGGING
+  console.log("My Client ID:", myClientId); // ADDED FOR DEBUGGING
+  console.log(
+    "Current Typer ID from gameState:",
+    gameState.rounds.currentTyperId
+  ); // ADDED FOR DEBUGGING
+
   const amITyper = gameState.rounds.currentTyperId === myClientId;
+  console.log("Am I the typer?", amITyper); // ADDED FOR DEBUGGING
+
   if (amITyper) {
     document.getElementById("text-input-area").value = "";
     showScreen("typing-screen");
@@ -135,8 +138,15 @@ const handleNewRound = (gameState) => {
     const typer = gameState.players.find(
       (p) => p.clientId === gameState.rounds.currentTyperId
     );
-    document.getElementById("current-typer-name-wait").textContent =
-      typer.playerName;
+    // Defensive check: ensure typer is found before accessing .playerName
+    if (typer) {
+      document.getElementById("current-typer-name-wait").textContent =
+        typer.playerName;
+    } else {
+      document.getElementById("current-typer-name-wait").textContent =
+        "A player is typing...";
+      console.warn("Typer player not found in gameState.players array.");
+    }
     showScreen("waiting-screen");
   }
 };

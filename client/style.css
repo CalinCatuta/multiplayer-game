@@ -57,10 +57,10 @@ button:hover {
 #next-round-btn:hover {
   background-color: #218838;
 }
-#start-game-btn.hidden,
+/* #start-game-btn.hidden,
 #next-round-btn.hidden {
   display: none;
-}
+} */
 
 .player-box {
   border: 2px solid #ccc;

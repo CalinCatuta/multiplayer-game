@@ -141,11 +141,11 @@ const handleMessage = (ws, message) => {
       startNewRound(payload);
       break;
     case "PLAY_SOUND":
-      // Broadcast sound to everyone in the room except the sender
+      // Broadcast sound to everyone in the room, INCLUDING the sender
       broadcastToRoom(
         payload.roomCode,
-        { type: "SOUND_PLAYED", payload: { sound: payload.sound } },
-        payload.clientId
+        { type: "SOUND_PLAYED", payload: { sound: payload.sound } }
+        // REMOVED: payload.clientId
       );
       break;
     default:

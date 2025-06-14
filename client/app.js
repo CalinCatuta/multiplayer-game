@@ -40,11 +40,17 @@ ws.onmessage = (event) => {
     case "ERROR":
       showError(payload.message);
       break;
+    case "YOUR_CLIENT_ID": //
+      myClientId = payload.clientId; //
+      console.log("My assigned Client ID:", myClientId); //
+      break;
     case "ROOM_CREATED":
     case "JOINED_ROOM":
-      myClientId = payload.clientId; // Client ID comes from the server's payload
+      // myClientId is now set by 'YOUR_CLIENT_ID'
+      // You can remove or keep the line below, but it's redundant if set on connection
+      // myClientId = payload.clientId; // This line will still be undefined based on current payload structure
       roomCode = payload.roomCode;
-      isHost = payload.hostId === myClientId;
+      isHost = payload.hostId === myClientId; // This will now correctly use the pre-set myClientId
       updateLobby(payload);
       showScreen("lobby-screen");
       break;

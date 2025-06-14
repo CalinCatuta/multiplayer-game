@@ -3,7 +3,7 @@
 // --- WebSocket Connection ---
 // In development, this connects to your local server.
 // For production on Render/Netlify, use the Render URL.
-const WS_URL = "ws://localhost:8080";
+const WS_URL = "https://guesswhofarted.onrender.com";
 const ws = new WebSocket(WS_URL);
 
 // --- State Management ---

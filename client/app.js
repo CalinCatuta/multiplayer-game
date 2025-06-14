@@ -70,13 +70,11 @@ ws.onmessage = (event) => {
       handleScorePhase(payload);
       break;
     case "SOUND_PLAYED":
-      // Broadcast sound to everyone in the room except the sender
-      broadcastToRoom(
-        payload.roomCode,
-        { type: "SOUND_PLAYED", payload: { sound: payload.sound } }, // payload.sound will be "besina-1", etc.
-        payload.clientId
-      );
-      break;
+      // Logic to play the sound payload.sound
+      console.log(`Playing sound: ${payload.sound}`);
+      const audio = new Audio(`/sounds/${payload.sound}.mp3`); // Make sure this path is correct
+      audio.play().catch((e) => console.error("Error playing sound:", e)); // Add error handling for playback
+      break; // <--- Don't forget this break!
   }
 };
 

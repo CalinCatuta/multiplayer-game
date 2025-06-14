@@ -264,9 +264,17 @@ function setupEventListeners() {
     // Correctly target sound buttons and ensure the path is accurate
     document.querySelectorAll(".sound-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        // The `data-sound` attribute now holds "besina-1", "besina-2", etc.
         const soundName = btn.dataset.sound;
-        sendMessage("PLAY_SOUND", { sound: soundName }); // Send the specific sound name
+
+        // 1. Play the sound locally for the typer IMMEDIATELY
+        console.log(`Playing local sound: ${soundName}`);
+        const audio = new Audio(`/sounds/${soundName}.mp3`);
+        audio
+          .play()
+          .catch((e) => console.error("Error playing local sound:", e));
+
+        // 2. Send the message to the server to broadcast to others
+        sendMessage("PLAY_SOUND", { sound: soundName });
       });
     });
   });

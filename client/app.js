@@ -83,7 +83,9 @@ const sendMessage = (type, payload = {}) => {
     type,
     payload: {
       ...payload,
-      roomCode, // Add current room code to payload
+      // Only include the global roomCode if it's not already specifically provided
+      // for the current message (like JOIN_ROOM)
+      roomCode: payload.roomCode || roomCode, // <--- CHANGE THIS LINE
       clientId: myClientId, // Add our client ID
     },
   };

@@ -54,7 +54,15 @@ const broadcastToRoom = (roomCode, message, excludeClientId = null) => {
 wss.on("connection", (ws) => {
   // A unique ID for this client connection
   ws.clientId = Math.random().toString(36).substring(2, 15);
-  console.log(`Client ${ws.clientId} connected.`); // ADDED FOR DEBUGGING
+  console.log(`Client ${ws.clientId} connected.`);
+
+  // Send the client its own ID immediately upon connection
+  ws.send(
+    JSON.stringify({
+      type: "YOUR_CLIENT_ID",
+      payload: { clientId: ws.clientId },
+    })
+  ); //
 
   ws.on("message", (rawMessage) => {
     try {
@@ -170,18 +178,28 @@ function createRoom({ ws, clientId, playerName }) {
       votes: {}, // { voterId: votedPlayerId }
     },
   };
-  console.log(`Room created: ${roomCode}, Host: ${clientId}, Players: ${gameSessions[roomCode].players.length}`); // ADDED FOR DEBUGGING
-  console.log('Current gameSessions (after create):', Object.keys(gameSessions)); // ADDED FOR DEBUGGING
+  console.log(
+    `Room created: ${roomCode}, Host: ${clientId}, Players: ${gameSessions[roomCode].players.length}`
+  ); // ADDED FOR DEBUGGING
+  console.log(
+    "Current gameSessions (after create):",
+    Object.keys(gameSessions)
+  ); // ADDED FOR DEBUGGING
   ws.send(
     JSON.stringify({ type: "ROOM_CREATED", payload: gameSessions[roomCode] })
   );
 }
 
 function joinRoom({ ws, clientId, roomCode, playerName }) {
-  console.log(`Attempting to join room: ${roomCode}, Client: ${clientId}, Player: ${playerName}`); // ADDED FOR DEBUGGING
+  console.log(
+    `Attempting to join room: ${roomCode}, Client: ${clientId}, Player: ${playerName}`
+  ); // ADDED FOR DEBUGGING
   const session = gameSessions[roomCode];
   if (!session) {
-    console.log(`Room ${roomCode} not found for client ${clientId}. Available rooms:`, Object.keys(gameSessions)); // ADDED FOR DEBUGGING
+    console.log(
+      `Room ${roomCode} not found for client ${clientId}. Available rooms:`,
+      Object.keys(gameSessions)
+    ); // ADDED FOR DEBUGGING
     return ws.send(
       JSON.stringify({ type: "ERROR", payload: { message: "Room not found." } })
     );
@@ -252,7 +270,9 @@ function startNewRound({ roomCode }) {
   session.rounds.playersWhoHaveTyped.push(randomPlayer.clientId);
 
   // Corrected console.log for chosen player
-  console.log(`Server: Room ${roomCode} - Chosen typer for new round: ${randomPlayer.playerName} (${randomPlayer.clientId})`); // FIXED LOG
+  console.log(
+    `Server: Room ${roomCode} - Chosen typer for new round: ${randomPlayer.playerName} (${randomPlayer.clientId})`
+  ); // FIXED LOG
 
   broadcastToRoom(roomCode, {
     type: "NEW_ROUND",

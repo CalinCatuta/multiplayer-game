@@ -40,7 +40,7 @@ ws.onmessage = (event) => {
     case "ERROR":
       showError(payload.message);
       break;
-   case "ROOM_CREATED":
+    case "ROOM_CREATED":
     case "JOINED_ROOM":
       myClientId = payload.clientId; // <--- CORRECTED LINE: Get clientId from payload
       roomCode = payload.roomCode;
@@ -100,19 +100,30 @@ const showError = (message) => {
 };
 
 const updateLobby = (gameState) => {
-  document.getElementById("room-code-display").textContent = gameState.roomCode;
-  const playerList = document.getElementById("lobby-player-list");
+  //
+  document.getElementById("room-code-display").textContent = gameState.roomCode; //
+  const playerList = document.getElementById("lobby-player-list"); //
   playerList.innerHTML = ""; // Clear previous list
   gameState.players.forEach((player) => {
-    const playerDiv = document.createElement("div");
-    playerDiv.className = "player-box";
+    //
+    const playerDiv = document.createElement("div"); //
+    playerDiv.className = "player-box"; //
     playerDiv.textContent =
-      player.playerName + (player.clientId === myClientId ? " (You)" : "");
-    playerList.appendChild(playerDiv);
+      player.playerName + (player.clientId === myClientId ? " (You)" : ""); //
+    playerList.appendChild(playerDiv); //
   });
 
-  const startBtn = document.getElementById("start-game-btn");
-  startBtn.style.display = isHost ? "block" : "none";
+  const startBtn = document.getElementById("start-game-btn"); //
+
+  // Logic to show/hide and enable/disable the start button
+  if (isHost) {
+    //
+    startBtn.style.display = "block"; // // Always show for host
+    // Disable if less than 3 players
+    startBtn.disabled = gameState.players.length < 3; // <--- ADDED/MODIFIED THIS LINE
+  } else {
+    startBtn.style.display = "none"; // // Hide for non-hosts
+  }
 };
 
 const handleNewRound = (gameState) => {

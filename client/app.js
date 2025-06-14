@@ -1,8 +1,6 @@
 // client/app.js
 
 // --- WebSocket Connection ---
-// In development, this connects to your local server.
-// For production on Render/Netlify, use the Render URL.
 const WS_URL = "https://guesswhofarted.onrender.com"; // Ensure this is YOUR Render URL and wss://
 const ws = new WebSocket(WS_URL);
 
@@ -10,7 +8,7 @@ const ws = new WebSocket(WS_URL);
 let myClientId = null;
 let roomCode = null;
 let isHost = false;
-let selectedVoteTarget = null; // Store the clientId of the player being voted for
+let selectedVoteTarget = null;
 
 // --- DOM Elements ---
 const screens = document.querySelectorAll(".screen");
@@ -42,7 +40,8 @@ ws.onmessage = (event) => {
       break;
     case "ROOM_CREATED":
     case "JOINED_ROOM":
-      myClientId = payload.clientId; // Client ID comes from the server's payload
+      myClientId = payload.clientId; // CORRECTED: Get clientId from payload
+      console.log("My Client ID set to:", myClientId, "from payload:", payload.clientId); // ADDED LOG
       roomCode = payload.roomCode;
       isHost = payload.hostId === myClientId;
       updateLobby(payload);
@@ -64,9 +63,7 @@ ws.onmessage = (event) => {
       handleScorePhase(payload);
       break;
     case "SOUND_PLAYED":
-      // Logic to play the sound payload.sound
       console.log(`Playing sound: ${payload.sound}`);
-      // Example: const audio = new Audio(`/sounds/${payload.sound}.mp3`); audio.play();
       break;
   }
 };
@@ -78,15 +75,12 @@ ws.onclose = () => {
 
 // --- Message Sending Function ---
 const sendMessage = (type, payload = {}) => {
-  // Inject state into every message automatically
   const message = {
     type,
     payload: {
       ...payload,
-      // Only include the global roomCode if it's not already specifically provided
-      // for the current message (like JOIN_ROOM)
-      roomCode: payload.roomCode || roomCode, // Use passed roomCode or global roomCode
-      clientId: myClientId, // Add our client ID
+      roomCode: payload.roomCode || roomCode,
+      clientId: myClientId,
     },
   };
   ws.send(JSON.stringify(message));
@@ -102,7 +96,7 @@ const showError = (message) => {
 const updateLobby = (gameState) => {
   document.getElementById("room-code-display").textContent = gameState.roomCode;
   const playerList = document.getElementById("lobby-player-list");
-  playerList.innerHTML = ""; // Clear previous list
+  playerList.innerHTML = "";
   gameState.players.forEach((player) => {
     const playerDiv = document.createElement("div");
     playerDiv.className = "player-box";
@@ -113,20 +107,19 @@ const updateLobby = (gameState) => {
 
   const startBtn = document.getElementById("start-game-btn");
 
-  // Logic to show/hide and enable/disable the start button
-  if (!isHost) {
-    startBtn.style.display = "none"; // Show for host
-    // Disable if less than 3 players
+  // CORRECTED Logic to show/hide and enable/disable the start button
+  if (isHost) {
+    startBtn.style.display = "block"; // Show for host
+    startBtn.disabled = gameState.players.length < 3; // Disable if less than 3 players
+  } else {
+    startBtn.style.display = "none"; // Hide for non-hosts
   }
 };
 
 const handleNewRound = (gameState) => {
   console.log("handleNewRound called. Game State:", gameState); // ADDED FOR DEBUGGING
-  console.log("My Client ID:", myClientId); // ADDED FOR DEBUGGING
-  console.log(
-    "Current Typer ID from gameState:",
-    gameState.rounds.currentTyperId
-  ); // ADDED FOR DEBUGGING
+  console.log("My Client ID (inside handleNewRound):", myClientId); // ADDED FOR DEBUGGING
+  console.log("Current Typer ID from gameState:", gameState.rounds.currentTyperId); // ADDED FOR DEBUGGING
 
   const amITyper = gameState.rounds.currentTyperId === myClientId;
   console.log("Am I the typer?", amITyper); // ADDED FOR DEBUGGING
@@ -138,14 +131,12 @@ const handleNewRound = (gameState) => {
     const typer = gameState.players.find(
       (p) => p.clientId === gameState.rounds.currentTyperId
     );
-    // Defensive check: ensure typer is found before accessing .playerName
     if (typer) {
-      document.getElementById("current-typer-name-wait").textContent =
-        typer.playerName;
+        document.getElementById("current-typer-name-wait").textContent =
+          typer.playerName;
     } else {
-      document.getElementById("current-typer-name-wait").textContent =
-        "A player is typing...";
-      console.warn("Typer player not found in gameState.players array.");
+        document.getElementById("current-typer-name-wait").textContent = "A player is typing...";
+        console.warn("Typer player not found in gameState.players array.");
     }
     showScreen("waiting-screen");
   }
@@ -153,9 +144,8 @@ const handleNewRound = (gameState) => {
 
 const handleReadingPhase = (gameState) => {
   if (gameState.rounds.currentTyperId === myClientId) {
-    // If I was the typer, I just wait.
     showScreen("waiting-screen");
-    document.getElementById("current-typer-name-wait").textContent = "..."; // Or some other text
+    document.getElementById("current-typer-name-wait").textContent = "...";
   } else {
     document.getElementById("submitted-text-display").textContent =
       gameState.rounds.submittedText;
@@ -172,7 +162,6 @@ const handleReadingPhase = (gameState) => {
 };
 
 const handleVotingPhase = (gameState) => {
-  // The typer does not vote
   if (gameState.rounds.currentTyperId === myClientId) {
     showScreen("waiting-screen");
     document.getElementById("current-typer-name-wait").textContent =
@@ -182,7 +171,7 @@ const handleVotingPhase = (gameState) => {
 
   const playerList = document.getElementById("voting-player-list");
   playerList.innerHTML = "";
-  selectedVoteTarget = null; // Reset selection
+  selectedVoteTarget = null;
   document.getElementById("submit-vote-btn").disabled = true;
 
   gameState.players.forEach((player) => {
@@ -192,11 +181,9 @@ const handleVotingPhase = (gameState) => {
     playerDiv.dataset.clientId = player.clientId;
 
     playerDiv.addEventListener("click", () => {
-      // Remove 'selected' from all others
       document
         .querySelectorAll("#voting-player-list .player-box")
         .forEach((box) => box.classList.remove("selected"));
-      // Add 'selected' to the clicked one
       playerDiv.classList.add("selected");
       selectedVoteTarget = player.clientId;
       document.getElementById("submit-vote-btn").disabled = false;
@@ -237,7 +224,6 @@ const handleScorePhase = (gameState) => {
 
 // --- DOM Event Listeners ---
 function setupEventListeners() {
-  // Screen navigation
   document
     .getElementById("host-btn")
     .addEventListener("click", () => showScreen("host-screen"));
@@ -245,7 +231,6 @@ function setupEventListeners() {
     .getElementById("join-btn")
     .addEventListener("click", () => showScreen("join-screen"));
 
-  // Actions
   document.getElementById("create-room-btn").addEventListener("click", () => {
     const playerName = document
       .getElementById("host-player-name-input")
@@ -290,7 +275,7 @@ function setupEventListeners() {
   document.getElementById("submit-vote-btn").addEventListener("click", () => {
     if (selectedVoteTarget) {
       sendMessage("VOTE", { votedPlayerId: selectedVoteTarget });
-      showScreen("waiting-screen"); // Wait for others to vote
+      showScreen("waiting-screen");
       document.getElementById("current-typer-name-wait").textContent =
         "Waiting for results...";
     }
@@ -301,7 +286,6 @@ function setupEventListeners() {
   });
 
   document.getElementById("play-again-btn").addEventListener("click", () => {
-    // Reset local state and go to start screen
     myClientId = null;
     roomCode = null;
     isHost = false;
@@ -309,5 +293,4 @@ function setupEventListeners() {
   });
 }
 
-// Initialize the app
 document.addEventListener("DOMContentLoaded", setupEventListeners);
